@@ -1,6 +1,11 @@
 # demos
 
+> Some one-off demos that needed hosting :)
+
 - [CSS position: sticky event](sticky-position-event.html) - fire an event when elements begin/stop sticking.
+- [Material Design Playground](https://ebidel.github.io/material-playground/)
+
+By [Eric Bidelman](https://github.com/ebidel/).
 
 <script>
 (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

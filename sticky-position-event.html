@@ -1,0 +1,449 @@
+<!--
+Copyright 2017
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eric Bidelman (@ebidel)
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<meta name="author" content="Eric Bidelman @ebidel">
+<title>position: sticky events</title>
+<style>
+* {
+  box-sizing: border-box;
+}
+:root {
+  --default-padding: 16px;
+  --header-height: 80px;
+  --sticky-pos: 10px;
+}
+body {
+  margin: calc(var(--default-padding) * 2) auto;
+  line-height: 1.6;
+  color: #78909C;
+  font-family: 'Roboto', sans-serif;
+  background-color: #fff;
+  max-width: 1000px;
+  padding: 0 var(--default-padding);
+}
+body.debug .sticky_sentinel {
+  visibility: visible;
+  opacity: 0.8;
+  color: initial;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+body.debug .sticky {
+  z-index: 1;
+}
+a {
+  color: inherit;
+}
+h2, h2, h3, h4, h5 {
+  margin: 0;
+  font-weight: 300;
+  color: #546E7A;
+}
+h2, h2 {
+  font-size: 28px;
+}
+#container {
+  overflow: auto;
+  will-change: transform; /* make overflow fast on non-retina */
+  padding: var(--default-padding);
+  background-color: #ECEFF1;
+  scroll-behavior: smooth;
+}
+.sticky {
+  position: sticky;
+  top: var(--sticky-pos); /* Sentinels adjust based on this position. */
+  height: var(--header-height);
+  background: #3A5E8C;
+  padding: 0 var(--default-padding);
+  display: flex;
+  align-items: center;
+}
+.sticky_sentinel {
+  background: yellow;
+  position: absolute;
+  left: 0;
+  right: 0; /* needs dimensions */
+  visibility: hidden;
+}
+.sticky_sentinel--top {
+  /* Adjust the height and top values based on your on your sticky top position.
+  e.g. make the height bigger and adjust the top so observeHeaders()'s
+  IntersectionObserver fires as soon as the bottom of the sentinel crosses the
+  top of the intersection container. */
+  height: 40px;
+  top: -24px;
+}
+.sticky_sentinel--bottom {
+  bottom: 0;
+  /* Height should match the top of the header when it's at the bottom of the
+  intersection container. */
+  height: calc(var(--header-height) + var(--default-padding));
+}
+[data-lorem] {
+  margin-bottom: var(--default-padding);
+  text-align: justify;
+  padding: var(--default-padding);
+  position: relative; /* contain the sentinels */
+  background-color: #fff;
+}
+[data-lorem] h2 {
+  color: #fff;
+}
+.nosupport {
+  color: darkred;
+  font-weight: bold;
+  display: none;
+  text-align: center;
+}
+.shadow {
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14),
+              0 1px 18px 0 rgba(0, 0, 0, 0.12),
+              0 3px 5px -1px rgba(0, 0, 0, 0.4);
+}
+.who_is_sticky {
+  padding-bottom: var(--default-padding);
+  display: flex;
+  justify-content: space-between;
+}
+.who_is_sticky label {
+  color: #607D8B;
+  font-weight: 500;
+}
+main {
+  display: flex;
+  height: 50vh;
+}
+#toc {
+  --indent: 8px;
+  background: #fff;
+  border: 1px solid #ECEFF1;
+  min-width: 200px;
+  padding: var(--default-padding) calc(var(--default-padding) + var(--indent));
+  overflow: auto;
+  font-size: 14px;
+}
+#toc ul {
+  margin: 0;
+  padding: 0;
+}
+#toc li {
+  list-style: none;
+}
+#toc .toc-item ul {
+  margin-left: var(--default-padding);
+  transition: height 150ms ease-in-out;
+  overflow: hidden;
+}
+.toc-title {
+  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: calc(var(--default-padding) / 2);
+}
+#toc .toc-item a {
+  position: relative;
+  text-decoration: none;
+}
+#toc .toc-item.active a {
+  font-weight: bold;
+}
+#toc .toc-item.active h4::before {
+  content: '›';
+  position: absolute;
+  left: calc(-1 * var(--indent));
+  bottom: -3px;
+  font-size: 20px;
+}
+#toc .toc-item.active ul {
+  height: 70px;
+}
+#toc .toc-item ul {
+  height: 0;
+}
+header {
+  max-width: 700px;
+}
+</style>
+</head>
+<body>
+
+<p class="nosupport">
+  Your browser does not support CSS <code>position: sticky</code> or IntersectionObserver!
+</p>
+
+<header>
+  <h2>Know when sticky positioned elements are stuck.</h2>
+  <p>This page uses <b><a href="https://developers.google.com/web/updates/2016/04/intersectionobserver" target="_blank">IntersectionObserver</a></b>
+  to fire an event when each header begins to stick, and vice versa.
+  <b>No scroll events</b> were harmed in the making of this demo.</p>
+</header>
+
+<p style="text-align:center;font-style:italic;">Instructions: Scroll the container below...</p>
+
+<div class="who_is_sticky">
+  <span>Sticking header: <label>--</label></span>
+  <button onclick="toggleDebugMode()">Toggle debug mode</button>
+</div>
+
+<main>
+  <div id="container">
+    <template>
+      <div data-lorem="p">
+        <div class="sticky"><h2 id=""></h2></div>
+        <div>Pulvinar mattis nunc sed blandit libero. Est lorem ipsum dolor sit. Non pulvinar neque laoreet suspendisse interdum consectetur libero id faucibus. Condimentum mattis pellentesque id nibh tortor. Porttitor leo a diam sollicitudin tempor. Eget magna fermentum iaculis eu non diam phasellus. Consequat interdum varius sit amet. Porttitor leo a diam sollicitudin tempor id eu nisl. Diam maecenas sed enim ut sem viverra aliquet. A iaculis at erat pellentesque adipiscing commodo elit. Elementum facilisis leo vel fringilla est ullamcorper eget nulla. Nam aliquam sem et tortor consequat id. Egestas egestas fringilla phasellus faucibus scelerisque eleifend donec. Nunc congue nisi vitae suscipit tellus. Ullamcorper a lacus vestibulum sed arcu. Posuere ac ut consequat semper viverra. Tortor dignissim convallis aenean et tortor at risus viverra adipiscing. Viverra aliquet eget sit amet tellus cras. Sapien faucibus et molestie ac feugiat sed lectus vestibulum mattis. Imperdiet proin fermentum leo vel. Cras fermentum odio eu feugiat pretium nibh. Turpis in eu mi bibendum neque egestas congue quisque egestas. Mattis pellentesque id nibh tortor id aliquet. Nunc non blandit massa enim nec dui nunc mattis enim. Augue neque gravida in fermentum et sollicitudin. Non blandit massa enim nec dui nunc mattis. Pharetra pharetra massa massa ultricies mi quis hendrerit. Amet volutpat consequat mauris nunc congue nisi vitae suscipit. Lacinia quis vel eros donec ac odio tempor orci dapibus. Suspendisse sed nisi lacus sed viverra tellus. Dui faucibus in ornare quam viverra orci. Sit amet volutpat consequat mauris nunc. Sagittis aliquam malesuada bibendum arcu vitae elementum. Aenean pharetra magna ac placerat vestibulum lectus mauris ultrices eros. Ipsum dolor sit amet consectetur. Maecenas sed enim ut sem viverra aliquet eget. Dui accumsan sit amet nulla facilisi morbi tempus iaculis. Proin libero nunc consequat interdum varius sit amet mattis vulputate. Mauris rhoncus aenean vel elit scelerisque mauris. Convallis tellus id interdum velit laoreet. Rhoncus est pellentesque elit ullamcorper dignissim cras. Vel pharetra vel turpis nunc eget lorem dolor sed.</div>
+      </div>
+    </template>
+  </div>
+  <aside id="toc">
+    <h3 class="toc-title">Table of contents</h3>
+    <ul>
+      <template>
+        <li class="toc-item">
+          <a href="#" onclick="scrollToHeader(this)"></a>
+          <ul>
+            <li>One</li>
+            <li>Two</li>
+            <li>Three</li>
+          </ul>
+        </li>
+      </template>
+    </ul>
+  </aside>
+</main>
+
+<script>
+(function() {
+'use strict';
+
+let DEBUG = false;
+
+/**
+ * Returns true if the element's computed style is `position: sticky`.
+ * @param {!Element} el
+ * @return {boolean}
+ */
+function isSticky(el) {
+  return getComputedStyle(el).position.match('sticky') !== null;
+}
+
+/**
+ * Dispatches a `sticky-event` custom event on the element.
+ * @param {boolean} stuck
+ * @param {!Element} target Target element of event.
+ */
+function fire(stuck, target) {
+  const evt = new CustomEvent('sticky-change', {detail: {stuck, target}});
+  document.dispatchEvent(evt);
+}
+
+/**
+ * @param {!Element} container
+ */
+function generatePage(container) {
+  const MSGS = [
+    'No',
+    'JavaScript',
+    'scroll events',
+    'were',
+    'used',
+    'on',
+    'this',
+    'page!'
+  ];
+
+  const t = container.querySelector('template');
+  const toc = document.querySelector('#toc > ul');
+  const t2 = toc.querySelector('template');
+
+  MSGS.forEach((msg, i) => {
+    const clone = t.content.cloneNode(true);
+    const h2 = clone.querySelector('h2');
+    h2.textContent = msg;
+    h2.id = normalizeTitle(msg);
+    container.appendChild(clone);
+
+    const tocClone = t2.content.cloneNode(true);
+    const a = tocClone.querySelector('a');
+    a.textContent = msg;
+    a.href = `#${normalizeTitle(msg)}`;
+    toc.appendChild(tocClone);
+  });
+}
+
+/**
+ * Sets up an intersection observer to notify when elements with the class
+ * `.sticky_sentinel--top` become visible/invisible at the top of the container.
+ * @param {!Element} container
+ */
+function observeHeaders(container) {
+  const observer = new IntersectionObserver((records, observer) => {
+    for (const record of records) {
+      const targetInfo = record.boundingClientRect;
+      const stickyTarget = record.target.parentElement.querySelector('.sticky');
+      const rootBoundsInfo = record.rootBounds;
+
+      if (targetInfo.bottom < rootBoundsInfo.top) {
+        fire(true, stickyTarget);
+      }
+
+      if (targetInfo.bottom >= rootBoundsInfo.top &&
+          targetInfo.bottom < rootBoundsInfo.bottom) {
+       fire(false, stickyTarget);
+      }
+    }
+  }, {
+    // rootMargin: '-16px',
+    threshold: [0],
+    root: container
+  });
+
+  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
+    const sentinel = document.createElement('div');
+    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--top');
+    return el.parentElement.insertBefore(sentinel, el);
+  });
+
+  sentinels.forEach(el => observer.observe(el));
+}
+
+/**
+ * Sets up an intersection observer to notify when elements with the class
+ * `.sticky_sentinel--bottom` become visible/invisible at the botton of the
+ * container.
+ * @param {!Element} container
+ */
+function observeFooters(container) {
+  const observer = new IntersectionObserver((records, observer) => {
+    for (const record of records) {
+      const targetInfo = record.boundingClientRect;
+      const stickyTarget = record.target.parentElement.querySelector('.sticky');
+      const rootBoundsInfo = record.rootBounds;
+      const ratio = record.intersectionRatio;
+
+      if (targetInfo.bottom > rootBoundsInfo.top && ratio === 1) {
+        fire(true, stickyTarget);
+      }
+
+      if (targetInfo.top < rootBoundsInfo.top &&
+          targetInfo.bottom < rootBoundsInfo.bottom) {
+        fire(false, stickyTarget);
+      }
+    }
+  }, {
+    // rootMargin: '16px',
+    // Get callback slightly before element is 100% visible/invisible.
+    threshold: [1],
+    root: container
+  });
+
+  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
+    const sentinel = document.createElement('div');
+    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--bottom');
+    return el.parentElement.appendChild(sentinel);
+  });
+
+  sentinels.forEach(el => observer.observe(el));
+}
+
+/**
+ * Notifies when elements that have the class `sticky` begin to stick or not.
+ * Note: these should be children of the `container` element.
+ */
+function notifyWhenStickyHeadersChange(container) {
+  observeHeaders(container);
+  observeFooters(container);
+}
+
+const container = document.querySelector('#container');
+generatePage(container);
+
+// Feature detect warning after page content is generated.
+if (!isSticky(document.querySelector('.sticky')) || !window.IntersectionObserver) {
+  document.querySelector('.nosupport').style.display = 'block';
+} else  {
+  notifyWhenStickyHeadersChange(container);
+}
+
+const whoIsSticky = document.querySelector('.who_is_sticky label');
+const allTocsItems = Array.from(document.querySelectorAll('#toc .toc-item'));
+
+document.addEventListener('sticky-change', e => {
+  // Update sticking header title.
+  const [header, stuck] = [e.detail.target, e.detail.stuck];
+  header.classList.toggle('shadow', stuck);
+  const str = stuck ? header.textContent : '--';
+  whoIsSticky.textContent = str;
+
+  // Update TOC selected item.
+  allTocsItems.map(el =>  {
+    const match = (el.firstElementChild.getAttribute('href').slice(1) ==
+        header.firstElementChild.id);
+    el.classList.toggle('active', match);
+  });
+});
+
+function normalizeTitle(title) {
+  return title.replace(/[\s!]/g, '-');
+}
+
+function scrollToHeader(el) {
+  event.preventDefault();
+  const target = document.querySelector(`#${normalizeTitle(el.textContent)}`);
+  const parent = target.parentElement.parentElement;
+  // Slight px offset so IntersectionObserver triggers.
+  // Note: Smooth scroll is taken care of. Container has scroll-behavior: smooth.
+  container.scrollTo({left: 0, top: parent.offsetTop + 2});
+}
+
+function toggleDebugMode() {
+  DEBUG = !DEBUG;
+  document.body.classList.toggle('debug', DEBUG);
+  const sentinels = Array.from(document.querySelectorAll('.sticky_sentinel'));
+  sentinels.forEach(el => {
+    el.textContent = el.className;
+  });
+}
+
+window.toggleDebugMode = toggleDebugMode;
+window.scrollToHeader = scrollToHeader;
+
+// // TODO: benchmark against checking position using scroll events.
+// const stickyHeaders = Array.from(document.querySelectorAll('.sticky'));
+// const containerTop = container.getBoundingClientRect().top;
+// containers.onscroll = function(e) {
+//   const visibleHeaders = stickyHeaders.filter(header => {
+//     const headerTop = header.getBoundingClientRect().top;
+//     console.log(headerTop, containerTop)
+//   });
+// };
+})();
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+ m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+ })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ ga('create', 'UA-43475701-1', 'ebidel.github.io');
+ ga('send', 'pageview');
+</script>
+</body>
+</html>

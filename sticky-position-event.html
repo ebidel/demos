@@ -51,6 +51,14 @@ body.debug .sticky_sentinel {
 body.debug .sticky {
   z-index: 1;
 }
+body.embed {
+  margin: 0;
+  max-width: initial;
+  padding: 0;
+}
+body.embed .no-embed {
+  display: none;
+}
 a {
   color: inherit;
 }
@@ -100,7 +108,7 @@ h2, h2 {
   height: calc(var(--header-height) + var(--default-padding));
 }
 [data-lorem] {
-  margin-bottom: var(--default-padding);
+  margin-bottom: calc(var(--default-padding) * 2);
   text-align: justify;
   padding: var(--default-padding);
   position: relative; /* contain the sentinels */
@@ -191,14 +199,14 @@ header {
   Your browser does not support CSS <code>position: sticky</code> or IntersectionObserver!
 </p>
 
-<header>
+<header class="no-embed">
   <h2>Know when sticky positioned elements are stuck.</h2>
   <p>This page uses <b><a href="https://developers.google.com/web/updates/2016/04/intersectionobserver" target="_blank">IntersectionObserver</a></b>
   to fire an event when each header begins to stick, and vice versa.
   <b>No scroll events</b> were harmed in the making of this demo.</p>
 </header>
 
-<p style="text-align:center;font-style:italic;">Instructions: Scroll the container below...</p>
+<p class="no-embed" style="text-align:center;font-style:italic;">Instructions: Scroll the container below...</p>
 
 <div class="who_is_sticky">
   <span>Sticking header: <label>--</label></span>
@@ -374,6 +382,28 @@ function notifyWhenStickyHeadersChange(container) {
   observeFooters(container);
 }
 
+function normalizeTitle(title) {
+  return title.replace(/[\s!]/g, '-');
+}
+
+function scrollToHeader(el) {
+  event.preventDefault();
+  const target = document.querySelector(`#${normalizeTitle(el.textContent)}`);
+  const parent = target.parentElement.parentElement;
+  // Slight px offset so IntersectionObserver triggers.
+  // Note: Smooth scroll is taken care of. Container has scroll-behavior: smooth.
+  container.scrollTo({left: 0, top: parent.offsetTop + 2});
+}
+
+function toggleDebugMode() {
+  DEBUG = !DEBUG;
+  document.body.classList.toggle('debug', DEBUG);
+  const sentinels = Array.from(document.querySelectorAll('.sticky_sentinel'));
+  sentinels.forEach(el => {
+    el.textContent = el.className;
+  });
+}
+
 const container = document.querySelector('#container');
 generatePage(container);
 
@@ -402,26 +432,8 @@ document.addEventListener('sticky-change', e => {
   });
 });
 
-function normalizeTitle(title) {
-  return title.replace(/[\s!]/g, '-');
-}
-
-function scrollToHeader(el) {
-  event.preventDefault();
-  const target = document.querySelector(`#${normalizeTitle(el.textContent)}`);
-  const parent = target.parentElement.parentElement;
-  // Slight px offset so IntersectionObserver triggers.
-  // Note: Smooth scroll is taken care of. Container has scroll-behavior: smooth.
-  container.scrollTo({left: 0, top: parent.offsetTop + 2});
-}
-
-function toggleDebugMode() {
-  DEBUG = !DEBUG;
-  document.body.classList.toggle('debug', DEBUG);
-  const sentinels = Array.from(document.querySelectorAll('.sticky_sentinel'));
-  sentinels.forEach(el => {
-    el.textContent = el.className;
-  });
+if (location.search.includes('embed')) {
+  document.body.classList.add('embed');
 }
 
 window.toggleDebugMode = toggleDebugMode;

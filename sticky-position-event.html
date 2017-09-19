@@ -304,6 +304,12 @@ function generatePage(container) {
  * @param {!Element} container
  */
 function observeHeaders(container) {
+  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
+    const sentinel = document.createElement('div');
+    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--top');
+    return el.parentElement.insertBefore(sentinel, el);
+  });
+
   const observer = new IntersectionObserver((records, observer) => {
     for (const record of records) {
       const targetInfo = record.boundingClientRect;
@@ -325,12 +331,6 @@ function observeHeaders(container) {
     root: container
   });
 
-  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
-    const sentinel = document.createElement('div');
-    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--top');
-    return el.parentElement.insertBefore(sentinel, el);
-  });
-
   sentinels.forEach(el => observer.observe(el));
 }
 
@@ -341,6 +341,12 @@ function observeHeaders(container) {
  * @param {!Element} container
  */
 function observeFooters(container) {
+  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
+    const sentinel = document.createElement('div');
+    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--bottom');
+    return el.parentElement.appendChild(sentinel);
+  });
+
   const observer = new IntersectionObserver((records, observer) => {
     for (const record of records) {
       const targetInfo = record.boundingClientRect;
@@ -362,12 +368,6 @@ function observeFooters(container) {
     // Get callback slightly before element is 100% visible/invisible.
     threshold: [1],
     root: container
-  });
-
-  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
-    const sentinel = document.createElement('div');
-    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--bottom');
-    return el.parentElement.appendChild(sentinel);
   });
 
   sentinels.forEach(el => observer.observe(el));

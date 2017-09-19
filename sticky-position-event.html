@@ -299,17 +299,23 @@ function generatePage(container) {
 }
 
 /**
+ * @param {!Element} container
+ * @param {string} className
+ */
+function addSentinels(container, className) {
+  return Array.from(container.querySelectorAll('.sticky')).map(el => {
+    const sentinel = document.createElement('div');
+    sentinel.classList.add('sticky_sentinel', className);
+    return el.parentElement.appendChild(sentinel);
+  });
+}
+
+/**
  * Sets up an intersection observer to notify when elements with the class
  * `.sticky_sentinel--top` become visible/invisible at the top of the container.
  * @param {!Element} container
  */
 function observeHeaders(container) {
-  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
-    const sentinel = document.createElement('div');
-    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--top');
-    return el.parentElement.insertBefore(sentinel, el);
-  });
-
   const observer = new IntersectionObserver((records, observer) => {
     for (const record of records) {
       const targetInfo = record.boundingClientRect;
@@ -331,6 +337,8 @@ function observeHeaders(container) {
     root: container
   });
 
+  // Add the bottom sentinels to each section and attach an observer.
+  const sentinels = addSentinels(container, 'sticky_sentinel--top');
   sentinels.forEach(el => observer.observe(el));
 }
 
@@ -341,12 +349,6 @@ function observeHeaders(container) {
  * @param {!Element} container
  */
 function observeFooters(container) {
-  const sentinels = Array.from(container.querySelectorAll('.sticky')).map(el => {
-    const sentinel = document.createElement('div');
-    sentinel.classList.add('sticky_sentinel', 'sticky_sentinel--bottom');
-    return el.parentElement.appendChild(sentinel);
-  });
-
   const observer = new IntersectionObserver((records, observer) => {
     for (const record of records) {
       const targetInfo = record.boundingClientRect;
@@ -370,6 +372,8 @@ function observeFooters(container) {
     root: container
   });
 
+  // Add the bottom sentinels to each section and attach an observer.
+  const sentinels = addSentinels(container, 'sticky_sentinel--bottom');
   sentinels.forEach(el => observer.observe(el));
 }
 

@@ -1,0 +1,211 @@
+<!--
+Copyright 2017
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eric Bidelman (@ebidel)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Create .webm video from list of .png image files</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Product+Sans">
+  <style>
+    html, body {
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      background: #000;
+      color: #fff;
+      font-weight: 300;
+      font-family: 'Product Sans', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.8;
+    }
+    h1, h2 {
+      font-weight: inherit;
+    }
+    ol {
+      padding-left: 16px;
+    }
+    main a {
+      display: inline-block;
+      color: #fff;
+      margin-right: 8px;
+    }
+    canvas {
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h2>Turn a list of PNG images into a .webm video file</h2>
+  <ol>
+    <li>Use <code>window.createImageBitmap</code> to create a ImageBitmap for each image file.</li>
+    <li>Stream canvas to <code>&lt;video&gt;</code> element using <code>canvas.captureStream()</code>.</li>
+    <li>Draw images to canvas at desired FPS.</li>
+    <li>Capture video blobs from <code>&lt;video&gt;</code> using <code>MediaRecorder</code></li>
+    <li>Donezo.</li>
+  </ol>
+</header>
+
+<main></main>
+
+<script>
+(async() => {
+
+const NUM_FRAMES = 47;
+const FPS = 5.56;
+
+const container = document.querySelector('main');
+
+/**
+ * Fetches a list of images as array buffers. Names should be of the form
+ * frame_x.png, where x the frame number.
+ * @param {number} numImages
+ */
+async function fetchImageBuffers(numImages) {
+  const buffers = [];
+  for (let i = 0; i < numImages; ++i) {
+    const resp = await fetch(`frames/frame_${i}.png`);
+    buffers.push(await resp.arrayBuffer());
+  }
+  return buffers;
+}
+
+/**
+ * Fetches a list of images as array buffers. Names should be of the form
+ * frame_x.png, where x the frame number.
+ * @param {!HTMLCanvasElement} canvas
+ * @param {!Array<!ImageBitmap>} imageBitmaps
+ * @param {number} fps
+ * @return {!Promise}
+ */
+async function drawImagesToCanvas(canvas, imageBitmaps, fps) {
+  return await new Promise(resolve => {
+    const ctx = canvas.getContext('2d');
+    // ctx.scale(2, 2);
+
+    let frameIdx = 0;
+    const id = setInterval(() => {
+      ctx.drawImage(imageBitmaps[frameIdx++], 0, 0);
+      if (frameIdx >= NUM_FRAMES) {
+        clearInterval(id);
+        resolve();
+      }
+    }, 1000 / fps);
+  });
+}
+
+/**
+ * Starts a media recording
+ * @param {!MediaRecorder} mediaRecorder
+ * @returns {!Promise<!Array<!Blob>>}
+ */
+async function startRecording(mediaRecorder) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorder.onstop = (e) => resolve(chunks);
+    mediaRecorder.onerror = reject;
+    mediaRecorder.start();
+  });
+}
+
+/**
+ * @param {!HTMLAnchorElement} link
+ * @param {!Blob} blob
+ */
+function download(link, blob) {
+  link.href = URL.createObjectURL(blob);
+  link.download = 'video.webm';
+  setTimeout(() => URL.revokeObjectURL(link.href), 100);
+}
+
+/**
+ * @param {!Array<!Blob>} chunks Video chunks as captured by the MediaRecorder API.
+ */
+function createVideoLinks(chunks) {
+  const blob = new Blob(chunks, {type: 'video/webm'});
+
+  const div = document.createElement('div');
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.textContent = 'Open video';
+  a.target = '_blank';
+  div.appendChild(a);
+
+  const a2 = document.createElement('a');
+  a2.href = '#';
+  a2.textContent = 'Download video';
+  a2.onclick = e => download(a2, blob);
+  div.appendChild(a2);
+
+  container.appendChild(div);
+}
+
+const arrayBuffers = await fetchImageBuffers(NUM_FRAMES);
+const imageBitmaps = await Promise.all(arrayBuffers.map(ab => {
+  return createImageBitmap(new Blob([ab], {type: 'image/png'}));
+}));
+
+// Use last image as width so we know the set viewport is solid.
+const WIDTH = imageBitmaps[imageBitmaps.length - 1].width;
+const HEIGHT = imageBitmaps[imageBitmaps.length - 1].height;
+
+const video = document.createElement('video');
+video.hidden = true;
+
+const canvas = document.createElement('canvas');
+canvas.width = WIDTH;
+canvas.height = HEIGHT;
+canvas.style.width = `${WIDTH / 2}px`;
+canvas.style.height = `${HEIGHT / 2}px`;
+
+// Add canvas/video to page.
+container.appendChild(canvas);
+container.appendChild(video);
+
+// Create stream. Since we're not passing FPS, it will match how fast the
+// canvas is being painting.
+const stream = canvas.captureStream(/*FPS*/);
+video.srcObject = stream; // <video> src is the stream from the <canvas>.
+
+const recorder = new MediaRecorder(stream);
+startRecording(recorder).then(chunks => {
+  createVideoLinks(chunks, true);
+});
+
+await drawImagesToCanvas(canvas, imageBitmaps, FPS); // draw images to canvas at FPS.
+
+recorder.stop();
+
+})();
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+ m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+ })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ ga('create', 'UA-43475701-1', 'ebidel.github.io');
+ ga('send', 'pageview');
+</script>
+</body>
+</html>

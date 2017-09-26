@@ -2,6 +2,7 @@
 
 > Some one-off demos that needed hosting :)
 
+- [Create a video file from images](images2video/index.html) - turn a list of png images into a .webm video using no dependencies and only web platform features.
 - [CSS position: sticky event](sticky-position-event.html) - fire an event when elements begin/stop sticking.
 - [Material Design Playground](https://ebidel.github.io/material-playground/)
 

@@ -26,10 +26,6 @@ Author: Eric Bidelman (@ebidel)
   <style>
     html, body {
       height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
       background: #000;
       color: #fff;
       font-weight: 300;
@@ -50,6 +46,15 @@ Author: Eric Bidelman (@ebidel)
     }
     canvas {
       margin-bottom: 16px;
+      max-width: 100%;
+    }
+    @media screen and (min-width: 700px) {
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
     }
   </style>
 </head>

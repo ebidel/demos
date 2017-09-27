@@ -59,9 +59,9 @@ Author: Eric Bidelman (@ebidel)
   <h2>Turn a list of PNG images into a .webm video file</h2>
   <ol>
     <li>Use <code>window.createImageBitmap</code> to create a ImageBitmap for each image file.</li>
-    <li>Stream canvas to <code>&lt;video&gt;</code> element using <code>canvas.captureStream()</code>.</li>
     <li>Draw images to canvas at desired FPS.</li>
-    <li>Capture video blobs from <code>&lt;video&gt;</code> using <code>MediaRecorder</code></li>
+    <li>Stream canvas to using <code>canvas.captureStream()</code>.</li>
+    <li>Capture video blobs from the stream using <code>MediaRecorder</code></li>
     <li>Donezo.</li>
   </ol>
 </header>
@@ -171,28 +171,19 @@ const imageBitmaps = await Promise.all(arrayBuffers.map(ab => {
 const WIDTH = imageBitmaps[imageBitmaps.length - 1].width;
 const HEIGHT = imageBitmaps[imageBitmaps.length - 1].height;
 
-const video = document.createElement('video');
-video.hidden = true;
-
 const canvas = document.createElement('canvas');
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
 canvas.style.width = `${WIDTH / 2}px`;
 canvas.style.height = `${HEIGHT / 2}px`;
-
-// Add canvas/video to page.
 container.appendChild(canvas);
-container.appendChild(video);
 
 // Create stream. Since we're not passing FPS, it will match how fast the
 // canvas is being painting.
 const stream = canvas.captureStream(/*FPS*/);
-video.srcObject = stream; // <video> src is the stream from the <canvas>.
 
-const recorder = new MediaRecorder(stream);
-startRecording(recorder).then(chunks => {
-  createVideoLinks(chunks, true);
-});
+const recorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
+startRecording(recorder).then(chunks => createVideoLinks(chunks, true));
 
 await drawImagesToCanvas(canvas, imageBitmaps, FPS); // draw images to canvas at FPS.
 

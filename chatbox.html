@@ -1,0 +1,427 @@
+<!--
+Copyright 2017
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eric Bidelman (@ebidel)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disable scroll chaining on fixed position element</title>
+<style>
+* {
+  box-sizing: border-box;
+}
+html {
+  --header-height: 60px;
+}
+html, body {
+  font-family: "Open Sans", sans-serif;
+  font-weight: 300;
+  font-size: 16px;
+  background: #fafafa;
+  margin: 0;
+  overscroll-behavior-y: none; /* disable pull to refresh */
+}
+h1, h2, h3 {
+  margin: 0;
+  font-weight: inherit;
+}
+header {
+  padding: 0 8px;
+  background: #f44336;
+  color: #fff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+}
+#inbox {
+  padding-top: var(--header-height); /* height of header */
+}
+chat-window {
+  position: fixed;
+  bottom: 0;
+  right: 16px;
+}
+section {
+  counter-reset: email;
+}
+section div {
+  margin: 0;
+  padding: 16px 8px;
+  border-top: 1px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+}
+section .label::after {
+  counter-increment: email;
+  content: counter(email);
+  margin-left: 8px;
+}
+body.refreshing #inbox,
+body.refreshing header {
+  filter: blur(1px);
+  touch-action: none; /* prevent scrolling */
+}
+body.refreshing .refresher {
+  transform: translate3d(0,150%,0) scale(1);
+  z-index: 1;
+  visibility: visible;
+}
+.refresher {
+  pointer-events: none;
+  --refresh-width: 55px;
+  background: #fff;
+  width: var(--refresh-width);
+  height: var(--refresh-width);
+  border-radius: 50%; 
+  position: absolute;
+  left: calc(50% - var(--refresh-width) / 2);
+  padding: 8px;
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+              0 1px 5px 0 rgba(0, 0, 0, 0.12),
+              0 3px 1px -2px rgba(0, 0, 0, 0.2);
+  transition: all 300ms cubic-bezier(0,0,0.2,1);
+  will-change: transform, opacity;
+  display: inline-flex;
+  justify-content: space-evenly;
+  align-items: center;
+  visibility: hidden;
+}
+body.refreshing .refresher.shrink {
+  transform: translate3d(0,150%,0) scale(0);
+  opacity: 0;
+}
+.refresher.done {
+  transition: none;
+}
+.loading-bar {
+  width: 4px;
+  height: 18px;
+  border-radius: 4px;
+  animation: loading 1s ease-in-out infinite;
+}
+.loading-bar:nth-child(1) {
+  background-color: #3498db;
+  animation-delay: 0;
+}
+.loading-bar:nth-child(2) {
+  background-color: #c0392b;
+  animation-delay: 0.09s;
+}
+.loading-bar:nth-child(3) {
+  background-color: #f1c40f;
+  animation-delay: .18s;
+}
+.loading-bar:nth-child(4) {
+  background-color: #27ae60;
+  animation-delay: .27s;
+}
+@keyframes loading {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1,2.2);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h2>Your inbox...</h2>
+  </header>
+  <div class="refresher">
+    <div class="loading-bar"></div>
+    <div class="loading-bar"></div>
+    <div class="loading-bar"></div>
+    <div class="loading-bar"></div>
+  </div>
+  <section id="inbox">
+    <!-- filled dynamically -->
+  </section>
+  
+  <chat-window title="Chat with Eric Bidelman" open>
+    <div class="msg">I'm going to count...</div>
+    <div class="msg">1</div>
+    <div class="msg">2</div>
+    <div class="msg">3</div>
+    <div class="msg">4</div>
+    <div class="msg">5</div>
+    <div class="msg">6</div>
+    <div class="msg">Scrolling in this window does not scroll the page behind it!</div>
+    <div class="msg">The .msgs container has <code>overflow:auto</code> and uses <code>overscroll-behavior-y:contain</code> to prevent that behavior.</div>
+  </chat-window>
+</main>
+
+<template id="chat-window-template">
+  <style>
+    :host {
+      display: block;
+      max-width: 250px;
+      background: #fff;
+      contain: content;
+    }
+    :host([open]) .msgs {
+      display: flex;
+    }
+    .toolbar {
+      padding: 8px;
+      background: #404040;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top-left-radius: 3px;
+      border-top-right-radius: 3px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toolbar #title {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .toolbar #close {
+      font-size: inherit;
+      background: none;
+      border: none;
+      color: inherit;
+    }
+    .msgs {
+      border-left: 1px solid #ccc;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: start;
+      height: 300px;
+      overflow: auto;
+      overscroll-behavior-y: contain;
+    }
+    ::slotted(.msg) {
+      padding: 8px 16px;
+      margin: 8px;
+      border-radius: 5px;
+      background-color: #eee;
+    }
+    ::slotted(.msg:nth-child(even)) {
+      align-self: flex-end;
+    }
+    #input-container {
+      border: 1px solid #ccc;
+      border-top: 1px solid #aaa;
+    }
+    #input-container input {
+      padding: 8px;
+      font-size: inherit;
+      width: 100%;
+      height: 100%;
+      border: none;
+      box-sizing: border-box;
+    }
+    .msgs-container {
+      display: none;
+    }
+    :host([open]) .msgs-container {
+      display: block;
+    }
+  </style>
+  <div class="toolbar">
+    <span id="title"></span>
+    <button id="close">𝘅</button> 
+  </div>
+  <div class="msgs-container">
+    <div class="msgs">
+      <slot></slot>
+    </div>
+    <div id="input-container">
+      <input type="text" placeholder="Enter text">
+    </div>
+  </div>
+</template>
+
+<script>
+(() => {
+
+// Define <chat-window> custom element.
+customElements.define('chat-window', class extends HTMLElement {
+  constructor() {
+    super();
+ 
+    const shadowRoot = this.attachShadow({mode: 'open'});
+    const tmpl = document.querySelector('#chat-window-template');
+    shadowRoot.appendChild(tmpl.content.cloneNode(true));
+  
+    shadowRoot.querySelector('#title').textContent = this.title;
+  
+    const closeButton = shadowRoot.querySelector('#close');
+    closeButton.addEventListener('click', e => {
+      this.remove();
+    });
+  
+    this.msgs = shadowRoot.querySelector('.msgs');
+  
+    this.input = shadowRoot.querySelector('input');
+    this.input.addEventListener('keypress', e => {
+      if (e.code === 'Enter' && this.input.value) {
+        const msg = document.createElement('div');
+        msg.classList.add('msg');
+        msg.textContent = this.input.value;
+        this.appendChild(msg);
+        e.target.value = null;
+        this._scrollToBottom();
+      }
+    });
+  
+    const toolbar = shadowRoot.querySelector('.toolbar');
+    toolbar.addEventListener('click', e => {
+      this.open = !this.open;
+      if (this.open) {
+        this.input.focus();
+      } else {
+        this.input.blur();
+        this.blur();
+      }
+    });
+  
+    this.tabIndex = 0;
+    this.open = this.hasAttribute('open');
+  }
+   
+  get open() {
+    return this._open;
+  }
+   
+  set open(val) {
+    this._open = val;
+    if (this._open) {
+      this.setAttribute('open', '');
+      this._scrollToBottom();
+    } else {
+      this.removeAttribute('open');
+    }
+  }
+   
+   _scrollToBottom() {
+     this.msgs.scrollTop = this.msgs.scrollHeight;
+   }
+});
+
+async function simulateRefreshAction() {
+  const sleep = (timeout) => new Promise(resolve => setTimeout(resolve, timeout));
+
+  const transitionEnd = function(propertyName, node) {
+    return new Promise(resolve => {
+      function callback(e) {
+        e.stopPropagation();
+        if (e.propertyName === propertyName) {
+          node.removeEventListener('transitionend', callback);
+          resolve(e);
+        }
+      }
+      node.addEventListener('transitionend', callback);
+    });
+  }
+
+  const refresher = document.querySelector('.refresher');
+
+  document.body.classList.add('refreshing');
+  await sleep(2000);
+
+  refresher.classList.add('shrink');
+  await transitionEnd('transform', refresher);
+  refresher.classList.add('done');
+
+  refresher.classList.remove('shrink');
+  document.body.classList.remove('refreshing');
+  await sleep(0); // let new styles settle.
+  refresher.classList.remove('done');
+}
+
+function getRandomIntInclusive(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function formatDateBasedOnToday(date) {
+  const today = new Date();
+
+  const opts = {};
+  if (date.getDay() === today.getDay()) {
+    opts.minute = 'numeric';
+    opts.hour = 'numeric';
+  } else {
+    opts.month = 'short';
+    opts.day = 'numeric';
+  }
+  return new Intl.DateTimeFormat('en-US', opts).format(date);
+}
+
+function populatePage(inbox) {
+  const frag = new DocumentFragment();
+  let date = new Date();
+  for (let i = 0; i < NUM_EMAILs; ++i) {
+    date.setMinutes(date.getMinutes() - getRandomIntInclusive(1, 10));
+
+    const div = document.createElement('div');
+    div.innerHTML = `<span class="label">Email</span></span>${formatDateBasedOnToday(date)}</span>`;
+    frag.appendChild(div);
+  }
+  inbox.appendChild(frag);
+}
+
+const NUM_EMAILs = 100;
+let _startY = 0;
+
+const inbox = document.querySelector('#inbox');
+
+inbox.addEventListener('touchstart', e => {
+  _startY = e.touches[0].pageY;
+}, {passive: true});
+
+inbox.addEventListener('touchmove', e => {
+  const y = e.touches[0].pageY;
+  // Activate custom pull-to-refresh effects when at the top fo the container
+  // and user is scrolling up.
+  if (document.scrollingElement.scrollTop === 0 && y > _startY &&
+      !document.body.classList.contains('refreshing')) {
+    simulateRefreshAction();
+  }
+}, {passive: true});
+
+populatePage(inbox);
+})();
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+ m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+ })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ ga('create', 'UA-43475701-1', 'ebidel.github.io');
+ ga('send', 'pageview');
+</script>
+</body>
+</html>

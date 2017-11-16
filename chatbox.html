@@ -52,6 +52,7 @@ header {
   height: var(--header-height);
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 #inbox {
   padding-top: var(--header-height); /* height of header */
@@ -152,7 +153,12 @@ body.refreshing .refresher.shrink {
 
 <main>
   <header>
-    <h2>Your inbox...</h2>
+    <div>
+      <h2>Your inbox...</h2>
+    </div>
+    <div>
+      <span>Needs Chrome v63+</span>
+    </div>
   </header>
   <div class="refresher">
     <div class="loading-bar"></div>

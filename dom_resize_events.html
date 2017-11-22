@@ -1,0 +1,281 @@
+<!--
+Copyright 2017
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eric Bidelman (@ebidel)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>DOM element resize events: ResizeObserver + Custom Elements</title>
+<style>
+html, body {
+  height: 100vh;
+  margin: 0;
+  color: #455A64;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-family: "Product Sans", "Roboto", sans-serif;
+  font-weight: 300;
+}
+* {
+  box-sizing: border-box;
+}
+h1, h2, h3, h4 {
+  font-family: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+a {
+  color: currentColor;
+}
+map-element {
+  display: block;
+  width: 60%;
+  height: 60%;
+  background-color: #eee;
+  position: relative;
+}
+map-element::before {
+  position: absolute;
+  top: -32px;
+  left: 0;
+  content: attr(data-width) ' x ' attr(data-height);
+}
+button {
+  padding: 4px 8px;
+  background: none;
+  border: 1px solid currentColor;
+  cursor: pointer;
+  font-size: inherit;
+  margin-left: 4px;
+  color: currentColor;
+}
+header {
+  position: fixed;
+  z-index: 1;
+  top: 5%;
+  text-align: center;
+}
+header h1 {
+  margin-bottom: 16px;
+}
+header, footer {
+  background: #fff;
+  padding: 16px;
+}
+footer {
+  left: 0;
+  right: 0;
+  bottom: 5%;
+  line-height: 1.6;
+  text-align: center;
+  position: fixed;
+  max-width: 800px;
+  margin: 0 auto;
+}
+footer p {
+  margin: 0;
+}
+#code {
+  z-index: 2;
+  position: absolute;
+  background: #fff;
+  padding: 40px;
+  box-shadow: 0 0 15px #777;
+  margin: 0;
+  display: none;
+  border-radius: 3px;
+}
+#code.active {
+  display: block;
+}
+#code pre {
+  margin: 0;
+  line-height: inherit;
+}
+.overlay {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Resize events for DOM elements!</h1>
+  <h4>( resize the window or <button>click me</button> )</h4>
+</header>
+
+<div id="code">
+  <pre></pre>
+</div>
+
+<map-element id="map" search="Topeka Kansas"
+             key="AIzaSyD4iE2xVSpkLLOXoyqT-RuPwURN3ddScAI"
+             zoom="12"></map-element>
+
+<footer>
+  <p>What is this? The <code>&lt;map-element></code> above is a <a href="https://developers.google.com/web/fundamentals/web-components/customelements" target="_blank">custom element</a>. Its definition <span class="overlay" data-code="definition" title="Show the code">?</span> inherits from a <a href="http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/" target="_blank" title="class MapElement extends ResizeObservableElement(HTMLElement)">class mixin</a> named <code>ResizeObservableElement</code> <span class="overlay" data-code="mixin" title="Show the code">?</span>. It attaches a <a href="https://www.chromestatus.com/feature/5705346022637568" target="_blank">ResizeObserver</a> to 
+  the element in order to kjnow when its dimensions change. The element allows customers of the map element to hook in to this signal by attaching an <b><code>onresize</code> handler to the map element.</b></p>
+</footer>
+
+<script>
+(() => {
+
+// See Justin Fagnani's blog post on class mixins:
+// http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/ 
+const ResizeObservableElement = (superclass) => class extends superclass {  
+  constructor() {
+    super();
+
+    if (!window.ResizeObserver) {
+      return;
+    }
+
+    const ro = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (entry.target.onresize) {
+        entry.target.onresize(entry); 
+      }
+    });
+    ro.observe(this);
+  }
+};
+
+class MapElement extends ResizeObservableElement(HTMLElement) {  
+  static get is() { return 'map-element'; }
+
+  constructor() {
+    super();
+
+    const key = this.getAttribute('key');
+    const zoom = this.getAttribute('zoom') || 12;
+    const q = this.getAttribute('search') || 'San Francisco';
+
+    const root = this.attachShadow({mode: 'open'});
+    root.innerHTML = `
+        <iframe src="https://www.google.com/maps/embed/v1/place?key=${key}&q=${q}&zoom=${zoom}"
+                width="100%" height="100%" frameborder="0"
+                style="border:0" allowfullscreen></iframe>`;
+
+    root.querySelector('iframe').addEventListener('load', e => {
+      this.onload && this.onload(e);
+    });
+  }
+}
+
+customElements.define(MapElement.is, MapElement);
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+
+const map = document.querySelector('#map');
+const button = document.querySelector('button');
+let _rafId;
+let grow = true;
+
+button.addEventListener('click', e => {
+  if (_rafId) {
+    cancelAnimationFrame(_rafId);
+    _rafId = null;
+    return;
+  }
+
+  // map.style.width = `${getRandomInt(100, 500)}px`;
+  // map.style.height = `${getRandomInt(100, 500)}px`;
+
+  let width = parseInt(map.style.width || getComputedStyle(map).width);
+  let height = parseInt(map.style.height || getComputedStyle(map).height); 
+
+  const MIN_SIZE = 100;
+  const MAX_SIZE = Math.min(document.body.clientWidth, document.body.clientHeight);
+
+  function animate() {
+    if (width < MIN_SIZE || height < MIN_SIZE) {
+      grow = true;
+    } else if (width > MAX_SIZE || height > MAX_SIZE) {
+      grow = false;
+    }
+    const deltaPx = grow ? 2 : -2;
+    width += deltaPx;
+    height += deltaPx
+
+    map.style.width = `${width}px`;
+    map.style.height = `${height}px`;
+
+    _rafId = requestAnimationFrame(animate);
+  };
+  _rafId = requestAnimationFrame(animate);
+});
+
+const overlays = document.querySelectorAll('.overlay');
+Array.from(overlays).forEach(overlay => {
+  overlay.addEventListener('mousedown', e => {
+    let snippet = '';
+    switch (e.target.dataset.code) {
+      case 'definition':
+        snippet = MapElement.toString();
+        break;
+      case 'mixin':
+        snippet = `const ResizeObservableElement = ${ResizeObservableElement.toString()}`;
+        break;
+    }
+    const code = document.querySelector('#code');
+    code.firstElementChild.textContent = snippet;
+    code.classList.toggle('active');
+  });
+  overlay.addEventListener('mouseleave', e => {
+    const code = document.querySelector('#code');
+    code.classList.remove('active');
+  });
+});
+
+// We can define a resize handler for any DOM element and have ResizeObserver 
+// call it when the element changes size.
+map.onresize = function(entry) {
+  map.dataset.width = Math.round(entry.contentRect.width);
+  map.dataset.height = Math.round(entry.contentRect.height);
+};
+
+map.onload = function(e) {
+  console.log('map ready');
+};
+})();
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+ m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+ })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ ga('create', 'UA-43475701-1', 'ebidel.github.io');
+ ga('send', 'pageview');
+</script>
+</body>
+</html>

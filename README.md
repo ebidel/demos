@@ -2,8 +2,9 @@
 
 > Some one-off demos that needed hosting :)
 
-- [CSS overscroll-behavior chatbox](chatbox.html) - shows how to use CSS <code>overscroll-behavior</code> to prevent the mobile browser pull-to-refresh effect and also
-contain scroll events within a chat window component.
+- [Resize events for DOM elements](dom_resize_events.html) - a Custom Element class
+mixin that uses <code>ResizeObserver</code> to know when its size changes. Basically, <code>onresize</code> handlers for DOM!
+- [CSS overscroll-behavior chatbox](chatbox.html) - shows how to use CSS <code>overscroll-behavior</code> to prevent the mobile browser pull-to-refresh effect and also contain scroll events within a chat window component.
 - [Create a video file from images](images2video/index.html) - turn a list of png images into a .webm video using no dependencies and only web platform features.
 - [CSS position: sticky event](sticky-position-event.html) - fire an event when elements begin/stop sticking.
 - [Material Design Playground](https://ebidel.github.io/material-playground/)

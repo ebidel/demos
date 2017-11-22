@@ -52,6 +52,7 @@ header {
   height: var(--header-height);
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 #inbox {
   padding-top: var(--header-height); /* height of header */
@@ -152,7 +153,12 @@ body.refreshing .refresher.shrink {
 
 <main>
   <header>
-    <h2>Your inbox...</h2>
+    <div>
+      <h2>Your inbox...</h2>
+    </div>
+    <div>
+      <span class="featureSupportNotif">Your Browser doesn't support this feature :( &nbsp;</span>
+    </div>
   </header>
   <div class="refresher">
     <div class="loading-bar"></div>
@@ -265,7 +271,9 @@ body.refreshing .refresher.shrink {
 
 <script>
 (() => {
-
+if(CSS.supports('overscroll-behavior-y','contain')){
+  document.querySelector('.featureSupportNotif').style.display = 'none';
+}
 // Define <chat-window> custom element.
 customElements.define('chat-window', class extends HTMLElement {
   constructor() {

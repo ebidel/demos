@@ -157,7 +157,7 @@ body.refreshing .refresher.shrink {
       <h2>Your inbox...</h2>
     </div>
     <div>
-      <span>Needs Chrome v63+</span>
+      <span class="featureSupportNotif">Your Browser doesn't support this feature :( &nbsp;</span>
     </div>
   </header>
   <div class="refresher">
@@ -271,7 +271,9 @@ body.refreshing .refresher.shrink {
 
 <script>
 (() => {
-
+if(CSS.supports('overscroll-behavior-y','contain')){
+  document.querySelector('.featureSupportNotif').style.display = 'none';
+}
 // Define <chat-window> custom element.
 customElements.define('chat-window', class extends HTMLElement {
   constructor() {

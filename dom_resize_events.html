@@ -131,9 +131,7 @@ footer p {
   <h4>( resize the window or <button>click me</button> )</h4>
 </header>
 
-<div id="code">
-  <pre></pre>
-</div>
+<div id="code"><pre></pre></div>
 
 <map-element id="map" search="Topeka Kansas"
              key="AIzaSyD4iE2xVSpkLLOXoyqT-RuPwURN3ddScAI"
@@ -146,6 +144,10 @@ footer p {
 
 <script>
 (() => {
+
+if (!window.ResizeObserver || !window.customElements) {
+  alert("Your browser doesn't support Custom elements and/or ResizeObserver :(");
+}
 
 // See Justin Fagnani's blog post on class mixins:
 // http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/ 

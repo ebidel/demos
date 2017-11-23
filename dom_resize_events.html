@@ -146,7 +146,7 @@ footer p {
 (() => {
 
 if (!window.ResizeObserver || !window.customElements) {
-  console.warn("Your browser doesn't support Custom elements and/or ResizeObserver :(");
+  console.warn("Your browser doesn't support Custom elements and/or ResizeObserver. This demo won't work :(");
 }
 
 // See Justin Fagnani's blog post on class mixins:
@@ -159,8 +159,9 @@ const ResizeObservableElement = (superclass) => class extends superclass {
       // element instance. See https://goo.gl/5uLKZN.
       this._observer = new ResizeObserver(entries => {
         for (const entry of entries) {
-          // Custom event works for both node.onresize and addEventListener('resize') cases.
-          entry.target.dispatchEvent(new CustomEvent('resize', {detail: entry}));
+          // Custom event works for both node.onresize and node.addEventListener('resize') cases.
+          const evt = new CustomEvent('resize', {detail: entry, bubbles: false})
+          entry.target.dispatchEvent(evt);
         }
       });
     }
@@ -171,10 +172,9 @@ const ResizeObservableElement = (superclass) => class extends superclass {
     super();
 
     if (!window.ResizeObserver) {
-      console.warn('ResizeObservableElement: ResizeObserver not available in this browser.');
+      throw new Error('ResizeObservableElement: ResizeObserver not available in this browser.');
       return;
     }
-
     this.constructor.observer.observe(this);
   }
 };
@@ -269,6 +269,7 @@ map.addEventListener('resize', e => {
   map.dataset.height = Math.round(e.detail.contentRect.height);
 });
 
+// Function form.
 map.onload = function(e) {
   console.log('map ready');
 };

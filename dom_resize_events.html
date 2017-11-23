@@ -146,26 +146,36 @@ footer p {
 (() => {
 
 if (!window.ResizeObserver || !window.customElements) {
-  alert("Your browser doesn't support Custom elements and/or ResizeObserver :(");
+  console.warn("Your browser doesn't support Custom elements and/or ResizeObserver :(");
 }
 
 // See Justin Fagnani's blog post on class mixins:
 // http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/ 
 const ResizeObservableElement = (superclass) => class extends superclass {  
+  static get observer() {
+    if (!this._observer) {
+      // Set up a single RO for all elements that inherit from this class. This
+      // has much better performance than creating a separate RO in every
+      // element instance. See https://goo.gl/5uLKZN.
+      this._observer = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          // Custom event works for both node.onresize and addEventListener('resize') cases.
+          entry.target.dispatchEvent(new CustomEvent('resize', {detail: entry}));
+        }
+      });
+    }
+    return this._observer;
+  }
+
   constructor() {
     super();
 
     if (!window.ResizeObserver) {
+      console.warn('ResizeObservableElement: ResizeObserver not available in this browser.');
       return;
     }
 
-    const ro = new ResizeObserver(entries => {
-      const entry = entries[0];
-      if (entry.target.onresize) {
-        entry.target.onresize(entry); 
-      }
-    });
-    ro.observe(this);
+    this.constructor.observer.observe(this);
   }
 };
 
@@ -185,19 +195,14 @@ class MapElement extends ResizeObservableElement(HTMLElement) {
                 width="100%" height="100%" frameborder="0"
                 style="border:0" allowfullscreen></iframe>`;
 
+    // Custom element signals when it is ready by firing a `load` event.
     root.querySelector('iframe').addEventListener('load', e => {
-      this.onload && this.onload(e);
+      this.dispatchEvent(new CustomEvent('load'));
     });
   }
 }
 
 customElements.define(MapElement.is, MapElement);
-
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min)) + min;
-}
 
 const map = document.querySelector('#map');
 const button = document.querySelector('button');
@@ -210,9 +215,6 @@ button.addEventListener('click', e => {
     _rafId = null;
     return;
   }
-
-  // map.style.width = `${getRandomInt(100, 500)}px`;
-  // map.style.height = `${getRandomInt(100, 500)}px`;
 
   let width = parseInt(map.style.width || getComputedStyle(map).width);
   let height = parseInt(map.style.height || getComputedStyle(map).height); 
@@ -260,16 +262,17 @@ Array.from(overlays).forEach(overlay => {
   });
 });
 
-// We can define a resize handler for any DOM element and have ResizeObserver 
-// call it when the element changes size.
-map.onresize = function(entry) {
-  map.dataset.width = Math.round(entry.contentRect.width);
-  map.dataset.height = Math.round(entry.contentRect.height);
-};
+// Define a resize handler the map DOM element. Both old school element.onresize
+// handlers and addEventListener('resize') will work.
+map.addEventListener('resize', e => {
+  map.dataset.width = Math.round(e.detail.contentRect.width);
+  map.dataset.height = Math.round(e.detail.contentRect.height);
+});
 
 map.onload = function(e) {
   console.log('map ready');
 };
+
 })();
 
 (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

@@ -22,14 +22,14 @@ Author: Eric Bidelman (@ebidel)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Create .webm video from list of .png image files</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Product+Sans">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans">
   <style>
     html, body {
       height: 100%;
       background: #000;
       color: #fff;
       font-weight: 300;
-      font-family: 'Product Sans', Arial, sans-serif;
+      font-family: 'Google Sans', Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       line-height: 1.8;
     }
@@ -47,6 +47,9 @@ Author: Eric Bidelman (@ebidel)
     canvas {
       margin-bottom: 16px;
       max-width: 100%;
+    }
+    #loading {
+      text-align: center;
     }
     @media screen and (min-width: 700px) {
       body {
@@ -71,10 +74,15 @@ Author: Eric Bidelman (@ebidel)
   </ol>
 </header>
 
+<p id="loading">Loading...<br>Using MediaRecorder to record the canvas.</p>
 <main></main>
 
 <script>
 (async() => {
+
+if (!('MediaRecorder' in window)) {
+  alert("Your browser doesn't support MediaRecorder");
+}
 
 const NUM_FRAMES = 47;
 const FPS = 5.56;
@@ -110,7 +118,9 @@ async function drawImagesToCanvas(canvas, imageBitmaps, fps) {
 
     let frameIdx = 0;
     const id = setInterval(() => {
-      ctx.drawImage(imageBitmaps[frameIdx++], 0, 0);
+      const frame = imageBitmaps[frameIdx++];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frame, 0, 0);
       if (frameIdx >= NUM_FRAMES) {
         clearInterval(id);
         resolve();
@@ -163,6 +173,8 @@ function createVideoLinks(chunks) {
   a2.textContent = 'Download video';
   a2.onclick = e => download(a2, blob);
   div.appendChild(a2);
+
+  document.querySelector('#loading').remove();
 
   container.appendChild(div);
 }

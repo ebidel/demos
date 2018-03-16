@@ -45,10 +45,6 @@ body {
 * {
   box-sizing: border-box;
 }
-canvas {
-  width: 600px;
-  height: 400px;
-}
 .support {
   display: none;
 }
@@ -76,29 +72,29 @@ Platform Features" flag to use it in about:flags. FF is in development.</p>
 
 <div class="support">Your browser does not support OffscreenCanvas.</div>
 
-<p><b>What</b>: Select an image below. While the animation is driven by
-<code>requestAnimationFrame()</code> in the main page, the pixels are manipulated
-and drawn to the canvas in a web worker! The pixel data is transferred back from
-the worker by setting up an <code>OffscreenCanvas</code>, calling
-<code>ctx.transferToImageBitmap()</code>, and sending <code>ImageBitmap</code>
-back as <a href="https://developer.mozilla.org/en-US/docs/Web/API/Transferable" target="_blank">transferrables</a>
-using <code>postMessage()</code>.</p>
+<p><b>What</b>: While the canvas animation is driven by <code>requestAnimationFrame()</code>
+in the main page, the <b></b>pixels are manipulated / drawn to the canvas in the web
+worker</b> using <code>OffscreenCanvas</code>. The worker introduces jank to the
+animation every so often to simulate a CPU-intensie operation. However, the main thread
+says responsive!</p>
 
-<div>
-  <input type="file">
-</div>
+<p>
+  <b>Instructions</b>: Select an image below. Click <button>this button</button> during jank. It stays responsive.</li>
+</p>
+
+<p><input type="file"></p>
 
 <canvas></canvas>
 
 <script type="script/worker" id="workerCode">
 let angle = 0;
 let ctx = null;
-let w;
-let h;
 let backgroundBitmap = null;
 
 function drawCircle() {
-  const radius = h * Math.abs(Math.cos(angle));
+  const radius = ctx.canvas.height * Math.abs(Math.cos(angle));
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
 
   ctx.save();
   ctx.globalAlpha = 0.5;
@@ -112,33 +108,72 @@ function drawCircle() {
 }
 
 function drawBackground() {
-  ctx.clearRect(0, 0, w, h);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.drawImage(backgroundBitmap, 0, 0);
 }
+
+function fibonacci(num) {
+  if (num <= 1) {
+    return 1;
+  }
+  return fibonacci(num - 1) + fibonacci(num - 2);
+}
+
+let counter =  0;
 
 self.onmessage = function(e) {
   switch (e.data.msg) {
     case 'start':
       backgroundBitmap = e.data.bitmap;
-      w = backgroundBitmap.width;
-      h = backgroundBitmap.height;
-      const canvas = new OffscreenCanvas(w, h);
+      const canvas = e.data.canvas;
       ctx = canvas.getContext('2d');
       drawBackground();
       postMessage({msg: 'ready'});
       break;
     case 'animate':
+      // Periodic jank!
+      if (counter++ >= 150) {
+        fibonacci(40);
+        counter = 0;
+      }
       drawBackground();
       drawCircle();
-      const bitmap = ctx.canvas.transferToImageBitmap();
-      postMessage({msg: 'render', bitmap}, [bitmap]);
+      ctx.commit(); // magic sauce.
       break;
   }
 };
 </script>
 
 <script>
+
 (async() => {
+
+/**
+ * Note: You can also create an OS in a worker and postMessage transferrable
+ * bitmaps back to the main page:
+ *
+ * // worker.js
+ * self.onmessage = function(e) {
+ *   const canvas = new OffscreenCanvas(e.data.width, e.data.height);
+ *   ctx = canvas.getContext('2d');
+ *   // draw fancy things ...
+ *   const bitmap = ctx.canvas.transferToImageBitmap();
+ *   postMessage({bitmap}, [bitmap]);
+ * };
+ *
+ * // index.html
+ * const canvas = document.createElement('canvas');
+ * canvas.width = 400;
+ * canvas.height = 400;
+ *
+ * const worker = new Worker('worker.js');
+ * worker.onmessage = function(e) {
+ *   const ctx = canvas.getContext('bitmaprenderer');
+ *   ctx.transferFromImageBitmap(e.data.bitmap);
+ * };
+ *
+ * worker.postMessage({width: canvas.width, height: canvas.height});
+ */
 
 // Feature detect.
 document.querySelector('.support').classList.toggle(
@@ -162,6 +197,7 @@ worker.onmessage = e => {
     case 'render':
       const ctx = canvas.getContext('bitmaprenderer');
       ctx.transferFromImageBitmap(e.data.bitmap);
+      // ctx.canvas.toBlob(blob => console.log(blob), 'image/jpeg');
       break;
   }
 };
@@ -171,11 +207,12 @@ input.addEventListener('change', async e => {
   const image = e.target.files[0];
 
   const bitmap = await createImageBitmap(image);
-  canvas.width = bitmap.width / devicePixelRatio
-  canvas.height = bitmap.height / devicePixelRatio;
-  worker.postMessage({msg: 'start', bitmap}, [bitmap]);
-
-  // canvas1.toBlob(blob => console.log(blob), 'image/jpeg');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.style.width = canvas.width / devicePixelRatio;
+  canvas.style.height = canvas.height / devicePixelRatio;
+  const offscreen = canvas.transferControlToOffscreen();
+  worker.postMessage({msg: 'start', canvas: offscreen, bitmap}, [offscreen, bitmap]);
 });
 
 URL.revokeObjectURL(url); // cleanup

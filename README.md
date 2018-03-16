@@ -2,6 +2,8 @@
 
 > Some one-off demos that needed hosting :)
 
+- [Offscreen canvas](offscreencanvas.html) - <code>OffscreenCanvas</code> is a
+<code>canvas</code> that can be used in workers!
 - [Resize events for DOM elements](dom_resize_events.html) - a Custom Element class
 mixin that uses <code>ResizeObserver</code> to know when its size changes. Basically, <code>onresize</code> handlers for DOM!
 - [CSS overscroll-behavior chatbox](chatbox.html) - shows how to use CSS <code>overscroll-behavior</code> to prevent the mobile browser pull-to-refresh effect and also contain scroll events within a chat window component.

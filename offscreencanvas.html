@@ -1,0 +1,193 @@
+<!--
+Copyright 2018
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Author: Eric Bidelman (@ebidel)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Offscreen Canvas</title>
+<style>
+:root {
+  --default-padding: 16px;
+  --default-padding-half: 8px;
+  --material-blue-grey-100: #CFD8DC;
+  --material-blue-grey-300: #90A4AE;
+  --material-blue-grey-400: #78909C;
+  --material-blue-grey-600: #546E7A;
+  --material-blue-grey-800: #37474F;
+  --material-blue-grey-dark: #263238;
+  --material-red-500: #F44336;
+  --material-red-600: #E53935;
+}
+body {
+  font-family: 'Google Sans', 'Product Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.8;
+  padding: 1em 2em;
+  color: var(--material-blue-grey-800);
+}
+* {
+  box-sizing: border-box;
+}
+canvas {
+  width: 600px;
+  height: 400px;
+}
+.support {
+  display: none;
+}
+.notsupported {
+  display: block;
+  font-weight: bold;
+  text-align: center;
+  padding: var(--default-padding-half);
+  background-color: var(--material-red-500);
+  color: white;
+}
+</style>
+</head>
+<body>
+
+<h2>Offscreen canvas demo</h2>
+
+<p><a href="https://www.chromestatus.com/feature/5424182347169792" target="_blank">OffscreenCanvas</a>
+allows <code>&lt;canvas></code> rendering contexts (2D and WebGL) to be used
+in workers. This can increase parallelism and better performance on multi-core
+systems.</p>
+
+<p><b>Support</b>: Behind a flag in Chrome 60. Enable the "Experimental Web
+Platform Features" flag to use it in about:flags. FF is in development.</p>
+
+<div class="support">Your browser does not support OffscreenCanvas.</div>
+
+<p><b>What</b>: Select an image below. While the animation is driven by
+<code>requestAnimationFrame()</code> in the main page, the pixels are manipulated
+and drawn to the canvas in a web worker! The pixel data is transferred back from
+the worker by setting up an <code>OffscreenCanvas</code>, calling
+<code>ctx.transferToImageBitmap()</code>, and sending <code>ImageBitmap</code>
+back as <a href="https://developer.mozilla.org/en-US/docs/Web/API/Transferable" target="_blank">transferrables</a>
+using <code>postMessage()</code>.</p>
+
+<div>
+  <input type="file">
+</div>
+
+<canvas></canvas>
+
+<script type="script/worker" id="workerCode">
+let angle = 0;
+let ctx = null;
+let w;
+let h;
+let backgroundBitmap = null;
+
+function drawCircle() {
+  const radius = h * Math.abs(Math.cos(angle));
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2, true);
+  ctx.fill();
+  ctx.restore();
+
+  angle += Math.PI / 64;
+}
+
+function drawBackground() {
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(backgroundBitmap, 0, 0);
+}
+
+self.onmessage = function(e) {
+  switch (e.data.msg) {
+    case 'start':
+      backgroundBitmap = e.data.bitmap;
+      w = backgroundBitmap.width;
+      h = backgroundBitmap.height;
+      const canvas = new OffscreenCanvas(w, h);
+      ctx = canvas.getContext('2d');
+      drawBackground();
+      postMessage({msg: 'ready'});
+      break;
+    case 'animate':
+      drawBackground();
+      drawCircle();
+      const bitmap = ctx.canvas.transferToImageBitmap();
+      postMessage({msg: 'render', bitmap}, [bitmap]);
+      break;
+  }
+};
+</script>
+
+<script>
+(async() => {
+
+// Feature detect.
+document.querySelector('.support').classList.toggle(
+      'notsupported', !('OffscreenCanvas' in window));
+
+const canvas = document.querySelector('canvas');
+const workerCode = document.querySelector('#workerCode').textContent;
+const blob = new Blob([workerCode], {type: 'text/javascript'});
+const url = URL.createObjectURL(blob);
+
+const worker = new Worker(url);
+worker.onmessage = e => {
+  switch (e.data.msg) {
+    case 'ready':
+      const animate = () => {
+        worker.postMessage({msg: 'animate'});
+        requestAnimationFrame(animate);
+      }
+      animate();
+      break;
+    case 'render':
+      const ctx = canvas.getContext('bitmaprenderer');
+      ctx.transferFromImageBitmap(e.data.bitmap);
+      break;
+  }
+};
+
+const input = document.querySelector('input[type="file"]');
+input.addEventListener('change', async e => {
+  const image = e.target.files[0];
+
+  const bitmap = await createImageBitmap(image);
+  canvas.width = bitmap.width / devicePixelRatio
+  canvas.height = bitmap.height / devicePixelRatio;
+  worker.postMessage({msg: 'start', bitmap}, [bitmap]);
+
+  // canvas1.toBlob(blob => console.log(blob), 'image/jpeg');
+});
+
+URL.revokeObjectURL(url); // cleanup
+
+})();
+
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+ m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+ })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ ga('create', 'UA-43475701-1', 'ebidel.github.io');
+ ga('send', 'pageview');
+</script>
+</body>
+</html>

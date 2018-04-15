@@ -137,8 +137,12 @@ async function drawImagesToCanvas(canvas, imageBitmaps, fps) {
 async function startRecording(mediaRecorder) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-    mediaRecorder.onstop = (e) => resolve(chunks);
+    mediaRecorder.ondataavailable = (e) =>  chunks.push(e.data);
+    mediaRecorder.onstart = (e) => console.log(e);
+    mediaRecorder.onstop = (e) => {
+      console.log(e);
+      resolve(chunks);
+    }
     mediaRecorder.onerror = reject;
     mediaRecorder.start();
   });

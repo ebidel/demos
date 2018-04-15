@@ -62,7 +62,7 @@ body {
 
 <h2>Offscreen canvas demo</h2>
 
-<p><a href="https://www.chromestatus.com/feature/5424182347169792" target="_blank">OffscreenCanvas</a>
+<p><b>What</b>: <a href="https://www.chromestatus.com/feature/5424182347169792" target="_blank">OffscreenCanvas</a>
 allows <code>&lt;canvas></code> rendering contexts (2D and WebGL) to be used
 in workers. This can increase parallelism and better performance on multi-core
 systems.</p>
@@ -72,7 +72,7 @@ Platform Features" flag to use it in about:flags. FF is in development.</p>
 
 <div class="support">Your browser does not support OffscreenCanvas.</div>
 
-<p><b>What</b>: While the canvas animation is driven by <code>requestAnimationFrame()</code>
+<p><b>Demo</b>: While the canvas animation is driven by <code>requestAnimationFrame()</code>
 in the main page, the <b></b>pixels are manipulated / drawn to the canvas in the web
 worker</b> using <code>OffscreenCanvas</code>. The worker introduces jank to the
 animation every so often to simulate a CPU-intensie operation. However, the main thread

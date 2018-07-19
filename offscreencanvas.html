@@ -71,7 +71,7 @@ systems.</p>
 
 <div class="support">Your browser does not support OffscreenCanvas.</div>
 
-<p><b>Demo</b>: The canvas animation is fully driven inside of the qorker. <code>Worker.requestAnimationFrame()</code>
+<p><b>Demo</b>: The canvas animation is fully driven inside of the worker. <code>Worker.requestAnimationFrame()</code>
 is used to drive the animation withi the worker and pixels are manipulated / drawn to the canvas
 using <code>OffscreenCanvas</code>. The worker introduces jank to the
 animation every so often to simulate a CPU-intensie operation. However, the main thread

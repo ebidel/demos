@@ -62,19 +62,18 @@ body {
 
 <h2>Offscreen canvas demo</h2>
 
-<p><b>What</b>: <a href="https://www.chromestatus.com/feature/5424182347169792" target="_blank">OffscreenCanvas</a>
+<p><b>What</b>: <a href="https://www.chromestatus.com/feature/5681560598609920" target="_blank">OffscreenCanvas</a>
 allows <code>&lt;canvas></code> rendering contexts (2D and WebGL) to be used
 in workers. This can increase parallelism and better performance on multi-core
 systems.</p>
 
-<p><b>Support</b>: Behind a flag in Chrome 60. Enable the "Experimental Web
-Platform Features" flag to use it in about:flags. FF is in development.</p>
+<p><b>Support</b>: Available in Chrome 69. FF is in development.</p>
 
 <div class="support">Your browser does not support OffscreenCanvas.</div>
 
-<p><b>Demo</b>: While the canvas animation is driven by <code>requestAnimationFrame()</code>
-in the main page, the <b></b>pixels are manipulated / drawn to the canvas in the web
-worker</b> using <code>OffscreenCanvas</code>. The worker introduces jank to the
+<p><b>Demo</b>: The canvas animation is fully driven inside of the qorker. <code>Worker.requestAnimationFrame()</code>
+is used to drive the animation withi the worker and pixels are manipulated / drawn to the canvas
+using <code>OffscreenCanvas</code>. The worker introduces jank to the
 animation every so often to simulate a CPU-intensie operation. However, the main thread
 says responsive!</p>
 
@@ -119,6 +118,21 @@ function fibonacci(num) {
   return fibonacci(num - 1) + fibonacci(num - 2);
 }
 
+function animate() {
+  // Periodic jank!
+  if (counter++ >= 150) {
+    fibonacci(40);
+    counter = 0;
+  }
+
+  drawBackground();
+  drawCircle();
+
+
+  //ctx.commit(); // Don't need this since our animation is powered by rAF, but we could shipt a frame explicitly.
+  self.requestAnimationFrame(animate);
+}
+
 let counter =  0;
 
 self.onmessage = function(e) {
@@ -127,29 +141,16 @@ self.onmessage = function(e) {
       backgroundBitmap = e.data.bitmap;
       const canvas = e.data.canvas;
       ctx = canvas.getContext('2d');
-      drawBackground();
-      postMessage({msg: 'ready'});
-      break;
-    case 'animate':
-      // Periodic jank!
-      if (counter++ >= 150) {
-        fibonacci(40);
-        counter = 0;
-      }
-      drawBackground();
-      drawCircle();
-      ctx.commit(); // magic sauce.
+      animate();
       break;
   }
 };
 </script>
-
 <script>
-
 (async() => {
 
 /**
- * Note: You can also create an OS in a worker and postMessage transferrable
+ * Note: You can also create an OSC in a worker and postMessage transferrable
  * bitmaps back to the main page:
  *
  * // worker.js
@@ -187,13 +188,6 @@ const url = URL.createObjectURL(blob);
 const worker = new Worker(url);
 worker.onmessage = e => {
   switch (e.data.msg) {
-    case 'ready':
-      const animate = () => {
-        worker.postMessage({msg: 'animate'});
-        requestAnimationFrame(animate);
-      }
-      animate();
-      break;
     case 'render':
       const ctx = canvas.getContext('bitmaprenderer');
       ctx.transferFromImageBitmap(e.data.bitmap);
